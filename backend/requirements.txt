@@ -3,9 +3,14 @@ Django>=5.0,<6.0
 djangorestframework>=3.14
 django-environ>=0.11
 django-cors-headers>=4.4
+django-filter>=24.0
+djangorestframework-simplejwt>=5.3
 drf-spectacular>=0.27
+django-stubs>=4.2
+mypy>=1.8
 pytest-django>=4.7
 pytest>=7.4
+psycopg2-binary
 ruff>=0.1
 black>=23.12
 isort>=5.13
