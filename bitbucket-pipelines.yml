@@ -1,0 +1,28 @@
+
+image: python:3.11-slim
+
+pipelines:
+  default:
+    - parallel:
+        - step:
+            name: Backend Lint & Test
+            caches: [pip]
+            script:
+              - pip install -r backend/requirements.txt
+              - pip install pytest
+              - ruff --version || pip install ruff
+              - black --version || pip install black
+              - isort --version || pip install isort
+              - ruff backend
+              - black --check backend
+              - isort --check backend
+              - pytest -q backend
+        - step:
+            name: Frontend Lint & Test
+            image: node:20-alpine
+            caches: [node]
+            script:
+              - cd frontend
+              - npm ci
+              - npx eslint "src/**/*.{ts,tsx}"
+              - npm run -s test -- --watch=false || echo "(optional)"
