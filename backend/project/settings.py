@@ -4,7 +4,7 @@ import environ
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 env = environ.Env(
-    DJANGO_DEBUG=(bool, False),
+    DJANGO_DEBUG=(bool, True),
     DJANGO_SECRET_KEY=(str, "changeme"),
     DJANGO_ALLOWED_HOSTS=(str, "*"),
 )
@@ -76,7 +76,7 @@ REST_FRAMEWORK = {
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.AllowAny",  # we enforce per-view
+        "rest_framework.permissions.IsAuthenticated",
     ],
     "DEFAULT_FILTER_BACKENDS": [
         "django_filters.rest_framework.DjangoFilterBackend",

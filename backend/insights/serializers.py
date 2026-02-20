@@ -1,20 +1,21 @@
 from __future__ import annotations
 
 from typing import Any
-
 from rest_framework import serializers
-
 from .models import Insight
 
-
 class InsightSerializer(serializers.ModelSerializer):
-    # Represent tags as list[str] instead of M2M objects
+    # input field (write-only)
     tags = serializers.ListField(
-        child=serializers.CharField(max_length=50),
+        child=serializers.CharField(),
+        required=True,
         allow_empty=False,
+        write_only=True,
     )
 
-    created_by = serializers.SerializerMethodField(read_only=True)
+    # output field (read-only)
+    tags_list = serializers.SerializerMethodField(read_only=True)
+    created_by = serializers.SerializerMethodField()
 
     class Meta:
         model = Insight
@@ -23,22 +24,20 @@ class InsightSerializer(serializers.ModelSerializer):
             "title",
             "category",
             "body",
-            "tags",
+            "tags",        # write-only input
+            "tags_list",   # read-only output
             "created_by",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "created_by", "created_at", "updated_at"]
+        read_only_fields = ["id", "created_by", "created_at", "updated_at", "tags_list"]
+
+    def get_tags_list(self, obj: Insight) -> list[str]:
+        return list(obj.tags.values_list("name", flat=True))
 
     def get_created_by(self, obj: Insight) -> dict[str, Any]:
         user = obj.created_by
         return {"id": user.id, "username": getattr(user, "username", "")}
-
-    def to_representation(self, instance: Insight) -> dict[str, Any]:
-        data = super().to_representation(instance)
-        # Convert M2M Tag objects to list[str]
-        data["tags"] = list(instance.tags.values_list("name", flat=True))
-        return data
 
     # --- Validation rules from exam ---
     def validate_title(self, value: str) -> str:
@@ -60,3 +59,9 @@ class InsightSerializer(serializers.ModelSerializer):
         if len(set(cleaned)) != len(cleaned):
             raise serializers.ValidationError("Tags must not contain duplicates.")
         return cleaned
+
+    # optional: make response key "tags" instead of "tags_list"
+    def to_representation(self, instance: Insight) -> dict[str, Any]:
+        data = super().to_representation(instance)
+        data["tags"] = data.pop("tags_list", [])
+        return data
