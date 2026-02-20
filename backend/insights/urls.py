@@ -1,12 +1,21 @@
-
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import InsightViewSet, top_tags
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+
+from .views import InsightViewSet, logout_view, top_tags_view
 
 router = DefaultRouter()
-router.register(r'insights', InsightViewSet, basename='insight')
+router.register(r"insights", InsightViewSet, basename="insight")
 
 urlpatterns = [
-    path('', include(router.urls)),
-    path('analytics/top-tags', top_tags),
+    # Auth
+    path("auth/login", TokenObtainPairView.as_view(), name="token_obtain_pair"),
+    path("auth/refresh", TokenRefreshView.as_view(), name="token_refresh"),
+    path("auth/logout", logout_view, name="logout"),
+
+    # Insights CRUD
+    path("", include(router.urls)),
+
+    # Analytics
+    path("analytics/top-tags/", top_tags_view, name="top-tags"),
 ]
