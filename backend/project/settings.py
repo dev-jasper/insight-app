@@ -23,7 +23,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "drf_spectacular",
-    "backend.insights",
+    "insights.apps.InsightsConfig",
     "django_filters",
 ]
 
@@ -38,8 +38,8 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = "backend.project.urls"
-WSGI_APPLICATION = "backend.project.wsgi.application"
+ROOT_URLCONF = "project.urls"
+WSGI_APPLICATION = "project.wsgi.application"
 
 DATABASES = {
     "default": {
@@ -84,6 +84,7 @@ REST_FRAMEWORK = {
         "rest_framework.filters.OrderingFilter",
     ],
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "EXCEPTION_HANDLER": "project.api_exceptions.api_exception_handler",
     "PAGE_SIZE": 10,
 }
 

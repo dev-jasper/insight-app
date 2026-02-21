@@ -1,6 +1,6 @@
 from typing import Iterable
 from django.db import transaction
-from backend.insights.models import Insight, Tag
+from insights.models import Insight, Tag
 from django.contrib.auth import get_user_model
 
 User = get_user_model()

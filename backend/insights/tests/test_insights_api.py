@@ -67,3 +67,15 @@ def test_top_tags_endpoint(client, auth_client):
     a = client.get("/api/analytics/top-tags/")
     assert a.status_code == 200
     assert any(t["name"] == "Rates" for t in a.data["tags"])
+
+@pytest.mark.django_db
+def test_validation_error_is_standardized(auth_client):
+    res = auth_client.post(
+        "/api/insights/",
+        {"title": "x", "category": "Macro", "body": "short", "tags": ["t"]},
+        format="json",
+    )
+    assert res.status_code == 400
+    assert "error" in res.data
+    assert res.data["error"]["code"] == "VALIDATION_ERROR"
+    assert "details" in res.data["error"]
