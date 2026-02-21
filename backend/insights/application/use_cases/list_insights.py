@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from insights.infrastructure.selectors import InsightSelector
+from backend.insights.infrastructure.selectors import InsightSelector
 
 
 @dataclass(frozen=True)

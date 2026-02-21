@@ -14,3 +14,4 @@ psycopg2-binary
 ruff>=0.1
 black>=23.12
 isort>=5.13
+pytest-cov

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from django.contrib.auth import get_user_model
-from insights.infrastructure.repositories import InsightRepository
-from insights.models import Insight
+from backend.insights.infrastructure.repositories import InsightRepository
+from backend.insights.models import Insight
 
 User = get_user_model()
 

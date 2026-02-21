@@ -1,5 +1,5 @@
 from django.db.models import Count, QuerySet, Q
-from insights.models import Insight, Tag
+from backend.insights.models import Insight, Tag
 
 
 class InsightSelector:

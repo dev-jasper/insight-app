@@ -23,7 +23,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "drf_spectacular",
-    "insights",
+    "backend.insights",
     "django_filters",
 ]
 
@@ -38,8 +38,8 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = "project.urls"
-WSGI_APPLICATION = "project.wsgi.application"
+ROOT_URLCONF = "backend.project.urls"
+WSGI_APPLICATION = "backend.project.wsgi.application"
 
 DATABASES = {
     "default": {

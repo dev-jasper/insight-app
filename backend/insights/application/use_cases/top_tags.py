@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from insights.infrastructure.selectors import TagAnalyticsSelector
+from backend.insights.infrastructure.selectors import TagAnalyticsSelector
 
 
 class TopTagsUseCase:
