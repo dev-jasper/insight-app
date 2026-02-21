@@ -79,7 +79,7 @@ class InsightViewSet(viewsets.ModelViewSet):
                     title=ser.validated_data.get("title", insight.title),
                     category=ser.validated_data.get("category", insight.category),
                     body=ser.validated_data.get("body", insight.body),
-                    tags=ser.validated_data.get("tags", []),
+                    tags=ser.validated_data.get("tags", list(insight.tags.values_list("name",flat=True))),
                 ),
                 user=request.user,
             )
