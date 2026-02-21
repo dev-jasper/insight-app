@@ -5,8 +5,8 @@ from typing import Iterable
 
 from django.contrib.auth import get_user_model
 
-from backend.insights.domain.rules import validate_insight_payload
-from backend.insights.infrastructure.repositories import InsightRepository
+from insights.domain.rules import validate_insight_payload
+from insights.infrastructure.repositories import InsightRepository
 
 User = get_user_model()
 
