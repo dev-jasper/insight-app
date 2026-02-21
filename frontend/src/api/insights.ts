@@ -1,21 +1,21 @@
 import { http } from "./http";
-import { PaginatedResponse, Insight, TopTag } from "../types/api";
+import type { Insight, Paginated, TopTagsResponse } from "./types";
 
-export async function fetchInsights(params?: {
+export type ListInsightsParams = {
     search?: string;
     category?: string;
     tag?: string;
+    ordering?: string;
     page?: number;
-}) {
-    const response = await http.get<PaginatedResponse<Insight>>(
-        "/insights/",
-        { params }
-    );
+    page_size?: number;
+};
 
-    return response.data;
+export async function listInsights(params: ListInsightsParams) {
+    const res = await http.get<Paginated<Insight>>("/api/insights/", { params });
+    return res.data;
 }
 
-export async function fetchTopTags() {
-    const response = await http.get<TopTag[]>("/analytics/top-tags/");
-    return response.data;
+export async function getTopTags() {
+    const res = await http.get<TopTagsResponse>("/api/analytics/top-tags/");
+    return res.data;
 }
