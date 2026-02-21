@@ -1,9 +1,11 @@
-import React, { useMemo, useState } from "react";
-import { createInsight, toApiError } from "../api/insights";
-import type { ApiError } from "../api/types";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { createInsight } from "../api/insights";
+import type { ApiError } from "../api/types";
+import { Link } from "react-router-dom";
 
-const CATEGORY_OPTIONS = ["Macro", "Micro"]; // TODO: replace with real enum
+const CATEGORY_OPTIONS = ["Macro", "Equities", "FixedIncome", "Alternatives"];
+
 const TITLE_MIN = 5;
 const TITLE_MAX = 200;
 const BODY_MIN = 20;
@@ -11,6 +13,26 @@ const TAG_MIN = 1;
 const TAG_MAX = 10;
 
 type FieldErrors = Partial<Record<"title" | "category" | "body" | "tags", string>>;
+
+function getApiErrorMessage(err: unknown): { form: string; fields: FieldErrors } {
+    const e = err as { response?: { data?: ApiError } };
+    const data = e.response?.data;
+
+    if (!data) return { form: "Network error. Please try again.", fields: {} };
+
+    const fields: FieldErrors = {};
+    if (data.errors) {
+        if (data.errors.title?.[0]) fields.title = data.errors.title[0];
+        if (data.errors.category?.[0]) fields.category = data.errors.category[0];
+        if (data.errors.body?.[0]) fields.body = data.errors.body[0];
+        if (data.errors.tags?.[0]) fields.tags = data.errors.tags[0];
+    }
+
+    return {
+        form: data.detail || "Request failed. Please try again.",
+        fields,
+    };
+}
 
 function normalizeTag(raw: string) {
     return raw.trim().replace(/^#/, "");
@@ -22,25 +44,27 @@ export default function InsightCreatePage() {
     const [title, setTitle] = useState("");
     const [category, setCategory] = useState(CATEGORY_OPTIONS[0] ?? "");
     const [body, setBody] = useState("");
+
     const [tagInput, setTagInput] = useState("");
     const [tags, setTags] = useState<string[]>([]);
 
     const [submitting, setSubmitting] = useState(false);
-    const [formError, setFormError] = useState<string | null>(null);
+    const [formError, setFormError] = useState<string>("");
     const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
+    // --- Live validation (frontend) ---
     const titleErr = useMemo(() => {
-        const t = title.trim();
-        if (!t) return "Title is required.";
-        if (t.length < TITLE_MIN) return `Title must be at least ${TITLE_MIN} characters.`;
-        if (t.length > TITLE_MAX) return `Title must be at most ${TITLE_MAX} characters.`;
+        const v = title.trim();
+        if (!v) return "Title is required.";
+        if (v.length < TITLE_MIN) return `Title must be at least ${TITLE_MIN} characters.`;
+        if (v.length > TITLE_MAX) return `Title must be at most ${TITLE_MAX} characters.`;
         return "";
     }, [title]);
 
     const bodyErr = useMemo(() => {
-        const b = body.trim();
-        if (!b) return "Body is required.";
-        if (b.length < BODY_MIN) return `Body must be at least ${BODY_MIN} characters.`;
+        const v = body.trim();
+        if (!v) return "Body is required.";
+        if (v.length < BODY_MIN) return `Body must be at least ${BODY_MIN} characters.`;
         return "";
     }, [body]);
 
@@ -52,18 +76,18 @@ export default function InsightCreatePage() {
     const tagsErr = useMemo(() => {
         if (tags.length < TAG_MIN) return `At least ${TAG_MIN} tag is required.`;
         if (tags.length > TAG_MAX) return `At most ${TAG_MAX} tags allowed.`;
-        const uniq = new Set(tags.map((t) => t.toLowerCase()));
-        if (uniq.size !== tags.length) return "Tags must not contain duplicates.";
+        const lower = tags.map((t) => t.toLowerCase());
+        if (new Set(lower).size !== lower.length) return "Tags must not contain duplicates.";
         return "";
     }, [tags]);
 
     const isValid = !titleErr && !bodyErr && !categoryErr && !tagsErr;
 
-    function addTagFromInput() {
+    function addTag() {
         const v = normalizeTag(tagInput);
         if (!v) return;
 
-        // avoid duplicates (case-insensitive)
+        // prevent duplicates (case-insensitive)
         const exists = tags.some((t) => t.toLowerCase() === v.toLowerCase());
         if (exists) {
             setTagInput("");
@@ -80,89 +104,79 @@ export default function InsightCreatePage() {
         setTags((prev) => prev.filter((x) => x !== t));
     }
 
-    function applyBackendErrors(apiErr?: ApiError) {
-        const next: FieldErrors = {};
-
-        const e = apiErr?.errors ?? {};
-        if (e.title?.[0]) next.title = e.title[0];
-        if (e.category?.[0]) next.category = e.category[0];
-        if (e.body?.[0]) next.body = e.body[0];
-        if (e.tags?.[0]) next.tags = e.tags[0];
-
-        setFieldErrors(next);
-        setFormError(apiErr?.message || "Create failed. Please try again.");
-    }
-
     async function onSubmit(e: React.FormEvent) {
         e.preventDefault();
-        setFormError(null);
+
+        setFormError("");
         setFieldErrors({});
 
-        // client-side validation first
-        const clientErrs: FieldErrors = {};
-        if (titleErr) clientErrs.title = titleErr;
-        if (categoryErr) clientErrs.category = categoryErr;
-        if (bodyErr) clientErrs.body = bodyErr;
-        if (tagsErr) clientErrs.tags = tagsErr;
+        // client-side validation gate
+        const clientFields: FieldErrors = {};
+        if (titleErr) clientFields.title = titleErr;
+        if (categoryErr) clientFields.category = categoryErr;
+        if (bodyErr) clientFields.body = bodyErr;
+        if (tagsErr) clientFields.tags = tagsErr;
 
-        if (Object.keys(clientErrs).length > 0) {
-            setFieldErrors(clientErrs);
+        if (Object.keys(clientFields).length > 0) {
+            setFieldErrors(clientFields);
             return;
         }
 
         setSubmitting(true);
         try {
-            await createInsight({
+            const created = await createInsight({
                 title: title.trim(),
                 category,
                 body: body.trim(),
                 tags,
             });
-
-            nav("/insights", { replace: true });
-        } catch (err: any) {
-            applyBackendErrors(toApiError(err));
+            nav(`/insights/${created.id}`, { replace: true });
+        } catch (err) {
+            const api = getApiErrorMessage(err);
+            setFormError(api.form);
+            setFieldErrors(api.fields);
         } finally {
             setSubmitting(false);
         }
     }
 
     return (
-        <div className="max-w-3xl mx-auto p-6">
-            <h1 className="text-2xl font-semibold">Create Insight</h1>
-            <p className="text-sm text-gray-600 mt-1">
-                Fill in the details below. Validation runs live + on submit.
-            </p>
+        <main style={{ padding: 24, fontFamily: "system-ui", maxWidth: 720, margin: "0 auto" }}>
+            <h1>Create Insight</h1>
 
-            <form onSubmit={onSubmit} className="mt-6 space-y-5">
-                {formError && (
-                    <div className="p-3 rounded-lg border bg-red-50 text-red-700">
-                        {formError}
-                    </div>
-                )}
+            {formError && (
+                <div style={{ background: "#fee", border: "1px solid #f99", padding: 12, marginTop: 12 }}>
+                    {formError}
+                </div>
+            )}
 
+            <form onSubmit={onSubmit} style={{ marginTop: 16, display: "grid", gap: 14 }}>
+                {/* Title */}
                 <div>
-                    <label className="block text-sm font-medium">Title</label>
+                    <label style={{ display: "block", fontWeight: 600 }}>Title</label>
                     <input
-                        className="mt-1 w-full border rounded-lg px-3 py-2"
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
                         placeholder="5–200 characters"
+                        style={{ width: "100%", padding: 10 }}
                     />
-                    <p className="mt-1 text-xs text-gray-500">
+                    <div style={{ fontSize: 12, opacity: 0.7, marginTop: 4 }}>
                         {title.trim().length}/{TITLE_MAX}
-                    </p>
+                    </div>
                     {(fieldErrors.title || titleErr) && (
-                        <p className="mt-1 text-sm text-red-600">{fieldErrors.title || titleErr}</p>
+                        <div style={{ color: "crimson", marginTop: 4 }}>
+                            {fieldErrors.title || titleErr}
+                        </div>
                     )}
                 </div>
 
+                {/* Category */}
                 <div>
-                    <label className="block text-sm font-medium">Category</label>
+                    <label style={{ display: "block", fontWeight: 600 }}>Category</label>
                     <select
-                        className="mt-1 w-full border rounded-lg px-3 py-2"
                         value={category}
                         onChange={(e) => setCategory(e.target.value)}
+                        style={{ width: "100%", padding: 10 }}
                     >
                         {CATEGORY_OPTIONS.map((c) => (
                             <option key={c} value={c}>
@@ -171,56 +185,57 @@ export default function InsightCreatePage() {
                         ))}
                     </select>
                     {(fieldErrors.category || categoryErr) && (
-                        <p className="mt-1 text-sm text-red-600">{fieldErrors.category || categoryErr}</p>
+                        <div style={{ color: "crimson", marginTop: 4 }}>
+                            {fieldErrors.category || categoryErr}
+                        </div>
                     )}
                 </div>
 
+                {/* Body */}
                 <div>
-                    <label className="block text-sm font-medium">Body</label>
+                    <label style={{ display: "block", fontWeight: 600 }}>Body</label>
                     <textarea
-                        className="mt-1 w-full border rounded-lg px-3 py-2 min-h-[140px]"
                         value={body}
                         onChange={(e) => setBody(e.target.value)}
                         placeholder={`Minimum ${BODY_MIN} characters`}
+                        style={{ width: "100%", padding: 10, minHeight: 160 }}
                     />
                     {(fieldErrors.body || bodyErr) && (
-                        <p className="mt-1 text-sm text-red-600">{fieldErrors.body || bodyErr}</p>
+                        <div style={{ color: "crimson", marginTop: 4 }}>
+                            {fieldErrors.body || bodyErr}
+                        </div>
                     )}
                 </div>
 
+                {/* Tags */}
                 <div>
-                    <label className="block text-sm font-medium">Tags</label>
-                    <div className="mt-1 flex gap-2">
+                    <label style={{ display: "block", fontWeight: 600 }}>Tags</label>
+                    <div style={{ display: "flex", gap: 8 }}>
                         <input
-                            className="flex-1 border rounded-lg px-3 py-2"
                             value={tagInput}
                             onChange={(e) => setTagInput(e.target.value)}
-                            placeholder="Type a tag then press Add"
+                            placeholder="Type a tag then press Add (or Enter)"
+                            style={{ flex: 1, padding: 10 }}
                             onKeyDown={(e) => {
                                 if (e.key === "Enter") {
                                     e.preventDefault();
-                                    addTagFromInput();
+                                    addTag();
                                 }
                             }}
                         />
-                        <button
-                            type="button"
-                            className="px-4 py-2 rounded-lg border"
-                            onClick={addTagFromInput}
-                            disabled={!tagInput.trim() || tags.length >= TAG_MAX}
-                        >
+                        <button type="button" onClick={addTag} disabled={!tagInput.trim() || tags.length >= TAG_MAX}>
                             Add
                         </button>
                     </div>
 
-                    <div className="mt-2 flex flex-wrap gap-2">
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
                         {tags.map((t) => (
                             <button
                                 key={t}
                                 type="button"
                                 onClick={() => removeTag(t)}
-                                className="text-xs px-2 py-1 rounded-full bg-gray-200 hover:bg-gray-300"
-                                title="Click to remove"
+                                style={{ padding: "4px 8px", border: "1px solid #ccc" }}
+                                title="Remove tag"
                             >
                                 #{t} ✕
                             </button>
@@ -228,28 +243,22 @@ export default function InsightCreatePage() {
                     </div>
 
                     {(fieldErrors.tags || tagsErr) && (
-                        <p className="mt-1 text-sm text-red-600">{fieldErrors.tags || tagsErr}</p>
+                        <div style={{ color: "crimson", marginTop: 4 }}>
+                            {fieldErrors.tags || tagsErr}
+                        </div>
                     )}
                 </div>
 
-                <div className="flex items-center gap-2">
-                    <button
-                        type="submit"
-                        disabled={submitting || !isValid}
-                        className="px-4 py-2 rounded-lg bg-black text-white disabled:opacity-50"
-                    >
+                {/* Actions */}
+                <div style={{ display: "flex", gap: 10 }}>
+                    <button type="submit" disabled={submitting || !isValid}>
                         {submitting ? "Creating…" : "Create"}
                     </button>
-                    <button
-                        type="button"
-                        className="px-4 py-2 rounded-lg border"
-                        onClick={() => nav("/insights")}
-                        disabled={submitting}
-                    >
+                    <button type="button" onClick={() => nav("/insights")} disabled={submitting}>
                         Cancel
                     </button>
                 </div>
             </form>
-        </div>
+        </main>
     );
 }
