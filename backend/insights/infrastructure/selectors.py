@@ -1,4 +1,4 @@
-from django.db.models import Count, QuerySet
+from django.db.models import Count, QuerySet, Q
 from insights.models import Insight, Tag
 
 
@@ -15,7 +15,11 @@ class InsightSelector:
         qs = Insight.objects.select_related("created_by").prefetch_related("tags")
 
         if search:
-            qs = qs.filter(title__icontains=search)
+            qs = qs.filter(
+                Q(title__icontains=search) |
+                Q(body__icontains=search) |
+                Q(tags__name__icontains=search)
+            ).distinct()
 
         if category:
             qs = qs.filter(category=category)
