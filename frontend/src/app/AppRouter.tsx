@@ -1,10 +1,10 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import LoginPage from "../pages/LoginPage";
 import InsightsListPage from "../pages/InsightsListPage";
-import InsightFormPage from "../pages/InsightFormPage";
 import AnalyticsPage from "../pages/AnalyticsPage";
 import NotFoundPage from "../pages/NotFoundPage";
 import ProtectedRoute from "../auth/ProtectedRoute";
+import InsightCreatePage from "../pages/InsightCreatePage";
 
 export default function AppRouter() {
     return (
@@ -33,7 +33,7 @@ export default function AppRouter() {
                 path="/insights/new"
                 element={
                     <ProtectedRoute>
-                        <InsightFormPage mode="create" />
+                        <InsightCreatePage />
                     </ProtectedRoute>
                 }
             />
@@ -42,7 +42,7 @@ export default function AppRouter() {
                 path="/insights/:id/edit"
                 element={
                     <ProtectedRoute>
-                        <InsightFormPage mode="edit" />
+                        <InsightCreatePage />
                     </ProtectedRoute>
                 }
             />
