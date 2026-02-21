@@ -1,13 +1,12 @@
 import axios from "axios";
 import { tokenStorage } from "../auth/tokenStorage";
 
-export const API_BASE_URL =
-    import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000";
-
 export const http = axios.create({
-    baseURL: API_BASE_URL,
+    baseURL: import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000",
+    headers: {
+        "Content-Type": "application/json",
+    },
 });
-
 http.interceptors.request.use((config) => {
     const token = tokenStorage.getAccess();
     if (token) {
