@@ -328,10 +328,13 @@ const pageStyles: Record<string, React.CSSProperties> = {
     filtersGrid: {
         display: "grid",
         gap: 10,
-        gridTemplateColumns: "1fr 1fr",
+        gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+        alignItems: "stretch",
     },
     input: {
         width: "100%",
+        boxSizing: "border-box",
+        minWidth: 0,
         padding: "10px 12px",
         borderRadius: 12,
         border: "1px solid rgba(255,255,255,0.14)",
