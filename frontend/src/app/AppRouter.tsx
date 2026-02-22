@@ -7,13 +7,14 @@ import InsightEditPage from "../pages/InsightEditPage";
 import NotFoundPage from "../pages/NotFoundPage";
 import ProtectedRoute from "../auth/ProtectedRoute";
 import InsightCreatePage from "../pages/InsightCreatePage";
-
+import SignupPage from "../pages/SignupPage";
 
 export default function AppRouter() {
     return (
         <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="*" element={<NotFoundPage />} />
+            <Route path="/signup" element={<SignupPage />} />
 
             <Route
                 path="/"

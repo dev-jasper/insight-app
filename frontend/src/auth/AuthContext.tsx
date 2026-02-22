@@ -14,7 +14,7 @@ type AuthContextValue = {
     accessToken: string | null;
     isAuthenticated: boolean;
     user: AuthUser | null;
-    login: (tokens: AuthTokens) => Promise<void> | void;
+    login: (tokens: AuthTokens, preferredUsername?: string) => Promise<void>;
     logout: () => void;
     refreshMe: () => Promise<void>;
 };
@@ -50,7 +50,9 @@ function userFromAccessToken(access: string | null): AuthUser | null {
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [accessToken, setAccessToken] = useState<string | null>(() => tokenStorage.getAccess());
-    const [user, setUser] = useState<AuthUser | null>(() => userFromAccessToken(tokenStorage.getAccess()));
+    const [user, setUser] = useState<AuthUser | null>(() =>
+        userFromAccessToken(tokenStorage.getAccess())
+    );
 
     async function refreshMe() {
         const token = tokenStorage.getAccess();
@@ -60,12 +62,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const me = await meApi();
             setUser({ id: me.id, username: me.username });
         } catch {
+            // ignore
         }
     }
+
     useEffect(() => {
         if (!accessToken) return;
         refreshMe();
     }, [accessToken]);
+
     useEffect(() => {
         const handler = () => {
             tokenStorage.clear();
@@ -81,10 +86,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             accessToken,
             isAuthenticated: Boolean(accessToken),
             user,
-            login: async (tokens) => {
+            login: async (tokens, preferredUsername) => {
                 tokenStorage.setTokens(tokens);
                 setAccessToken(tokens.access);
-                setUser(userFromAccessToken(tokens.access));
+
+                const fromToken = userFromAccessToken(tokens.access);
+                setUser(preferredUsername ? { ...(fromToken ?? {}), username: preferredUsername } : fromToken);
+
                 await refreshMe();
             },
             logout: () => {
