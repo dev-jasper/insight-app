@@ -84,7 +84,7 @@ REST_FRAMEWORK = {
         "rest_framework.filters.SearchFilter",
         "rest_framework.filters.OrderingFilter",
     ],
-    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "DEFAULT_PAGINATION_CLASS": "insights.infrastructure.pagination.DefaultPagination",
     "EXCEPTION_HANDLER": "project.api_exceptions.api_exception_handler",
     "PAGE_SIZE": 10,
 }
