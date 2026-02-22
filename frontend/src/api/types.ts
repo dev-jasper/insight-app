@@ -20,7 +20,7 @@ export type Insight = {
     category: Category;
     body: string;
     tags: string[];
-    created_by: UserMini;
+    created_by?: UserMini;
     created_at: string;
     updated_at: string;
 };
