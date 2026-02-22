@@ -1,26 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { listInsights, type ListInsightsParams } from "../api/insights";
-import type { ApiError, Insight, Paginated } from "../api/types";
+import type { Insight, Paginated } from "../api/types";
 import TopNav from "../components/TopNav";
 import { useAuth } from "../auth/AuthContext";
+import { parseApiError } from "../api/errors";
 
 // TODO: update to match backend exactly if needed
 const CATEGORY_OPTIONS = ["", "Macro", "Equities", "FixedIncome", "Alternatives"];
 const PAGE_SIZE_OPTIONS = [5, 10, 20, 50];
-
-function getApiErrorMessage(err: unknown): string {
-    const e = err as { response?: { data?: ApiError } };
-    const data = e.response?.data;
-    if (!data) return "Network error. Please try again.";
-    if (data.detail) return data.detail;
-    if (data.errors) {
-        const firstKey = Object.keys(data.errors)[0];
-        const firstMsg = data.errors[firstKey]?.[0];
-        if (firstKey && firstMsg) return `${firstKey}: ${firstMsg}`;
-    }
-    return "Request failed. Please try again.";
-}
 
 function clampInt(v: string | null, fallback: number) {
     const n = Number(v);
@@ -115,7 +103,7 @@ export default function InsightsListPage() {
             })
             .catch((err) => {
                 if (!mounted) return;
-                setError(getApiErrorMessage(err));
+                setError(parseApiError(err).message);
             })
             .finally(() => {
                 if (!mounted) return;

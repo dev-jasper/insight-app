@@ -13,6 +13,7 @@ export default function AppRouter() {
     return (
         <Routes>
             <Route path="/login" element={<LoginPage />} />
+            <Route path="*" element={<NotFoundPage />} />
 
             <Route
                 path="/"
