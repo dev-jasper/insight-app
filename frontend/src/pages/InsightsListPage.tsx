@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { listInsights, type ListInsightsParams } from "../api/insights";
 import type { ApiError, Insight, Paginated } from "../api/types";
+import { Link } from "react-router-dom";
 
 // TODO: update to match backend exactly if needed
 const CATEGORY_OPTIONS = ["", "Macro", "Equities", "FixedIncome", "Alternatives"];
@@ -177,7 +178,7 @@ export default function InsightsListPage() {
                             {data.results.map((it) => (
                                 <li key={it.id} style={{ marginBottom: 14 }}>
                                     <div style={{ display: "flex", gap: 10, alignItems: "baseline", flexWrap: "wrap" }}>
-                                        <strong>{it.title}</strong>
+                                        <Link to={`/insights/${it.id}`}><strong>{it.title}</strong></Link>
                                         <em>({it.category})</em>
                                         <span style={{ opacity: 0.8 }}>by {it.created_by?.username}</span>
                                     </div>
