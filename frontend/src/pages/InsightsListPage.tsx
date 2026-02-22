@@ -10,6 +10,12 @@ import { parseApiError } from "../api/errors";
 const CATEGORY_OPTIONS = ["", "Macro", "Equities", "FixedIncome", "Alternatives"];
 const PAGE_SIZE_OPTIONS = [5, 10, 20, 50];
 
+function snippet(text: string, max = 160) {
+    const s = (text ?? "").replace(/\s+/g, " ").trim();
+    if (s.length <= max) return s;
+    return s.slice(0, max).trimEnd() + "…";
+}
+
 function clampInt(v: string | null, fallback: number) {
     const n = Number(v);
     return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
@@ -131,14 +137,15 @@ export default function InsightsListPage() {
     };
 
     return (
-        <>
+        <div style={pageStyles.page}>
             <TopNav />
 
-            <main style={{ padding: 24, fontFamily: "system-ui", maxWidth: 900, margin: "0 auto" }}>
-                <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12 }}>
+            <main style={pageStyles.main}>
+                <div style={pageStyles.headerRow}>
                     <div>
-                        <h1 style={{ margin: 0 }}>Insights</h1>
-                        <div style={{ fontSize: 12, opacity: 0.7, marginTop: 4 }}>
+                        <div style={pageStyles.kicker}>INSIGHTS</div>
+                        <h1 style={pageStyles.h1}>Insights</h1>
+                        <div style={pageStyles.sub}>
                             {data ? `${data.count} total` : ""}
                         </div>
                     </div>
@@ -146,130 +153,287 @@ export default function InsightsListPage() {
                     <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                         {isAuthenticated && (
                             <Link to="/insights/new">
-                                <button type="button" disabled={loading}>
+                                <button type="button" disabled={loading} style={pageStyles.primaryBtn}>
                                     + Create Insight
                                 </button>
                             </Link>
                         )}
-
-                        <button onClick={resetFilters} disabled={loading} style={{ padding: "8px 12px" }}>
+                        <button onClick={resetFilters} disabled={loading} style={pageStyles.ghostBtn}>
                             Reset
                         </button>
                     </div>
                 </div>
 
-                {/* Filters */}
-                <div style={{ display: "grid", gap: 10, gridTemplateColumns: "1fr 1fr", marginTop: 16 }}>
-                    <input
-                        placeholder="Search (title)..."
-                        value={search}
-                        onChange={(e) => {
-                            setPage(1);
-                            setSearch(e.target.value);
-                        }}
-                        style={{ padding: 10 }}
-                    />
+                <section style={pageStyles.glassCard}>
+                    <div style={pageStyles.filtersGrid}>
+                        <input
+                            placeholder="Search title…"
+                            value={search}
+                            onChange={(e) => { setPage(1); setSearch(e.target.value); }}
+                            style={pageStyles.input}
+                        />
+                        <input
+                            placeholder="Tag (e.g. Inflation)"
+                            value={tag}
+                            onChange={(e) => { setPage(1); setTag(e.target.value); }}
+                            style={pageStyles.input}
+                        />
 
-                    <input
-                        placeholder="Tag (e.g. Inflation)"
-                        value={tag}
-                        onChange={(e) => {
-                            setPage(1);
-                            setTag(e.target.value);
-                        }}
-                        style={{ padding: 10 }}
-                    />
+                        <select
+                            value={category}
+                            onChange={(e) => { setPage(1); setCategory(e.target.value); }}
+                            style={pageStyles.input}
+                        >
+                            {CATEGORY_OPTIONS.map((c) => (
+                                <option key={c} value={c}>
+                                    {c === "" ? "All categories" : c}
+                                </option>
+                            ))}
+                        </select>
 
-                    <select
-                        value={category}
-                        onChange={(e) => {
-                            setPage(1);
-                            setCategory(e.target.value);
-                        }}
-                        style={{ padding: 10 }}
-                    >
-                        {CATEGORY_OPTIONS.map((c) => (
-                            <option key={c} value={c}>
-                                {c === "" ? "All categories" : c}
-                            </option>
-                        ))}
-                    </select>
+                        <select
+                            value={ordering}
+                            onChange={(e) => { setPage(1); setOrdering(e.target.value); }}
+                            style={pageStyles.input}
+                        >
+                            <option value="-created_at">Newest</option>
+                            <option value="created_at">Oldest</option>
+                            <option value="title">Title A-Z</option>
+                            <option value="-title">Title Z-A</option>
+                        </select>
 
-                    <select
-                        value={ordering}
-                        onChange={(e) => {
-                            setPage(1);
-                            setOrdering(e.target.value);
-                        }}
-                        style={{ padding: 10 }}
-                    >
-                        <option value="-created_at">Newest</option>
-                        <option value="created_at">Oldest</option>
-                        <option value="title">Title A-Z</option>
-                        <option value="-title">Title Z-A</option>
-                    </select>
+                        <select
+                            value={pageSize}
+                            onChange={(e) => { setPage(1); setPageSize(Number(e.target.value)); }}
+                            style={pageStyles.input}
+                        >
+                            {PAGE_SIZE_OPTIONS.map((n) => (
+                                <option key={n} value={n}>
+                                    Page size: {n}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                </section>
 
-                    <select
-                        value={pageSize}
-                        onChange={(e) => {
-                            setPage(1);
-                            setPageSize(Number(e.target.value));
-                        }}
-                        style={{ padding: 10 }}
-                    >
-                        {PAGE_SIZE_OPTIONS.map((n) => (
-                            <option key={n} value={n}>
-                                Page size: {n}
-                            </option>
-                        ))}
-                    </select>
-                </div>
-
-                {/* Content */}
-                <div style={{ marginTop: 16 }}>
-                    {loading && <p>Loading…</p>}
-                    {!loading && error && <p style={{ color: "crimson" }}>{error}</p>}
-                    {!loading && !error && data && data.results.length === 0 && <p>No insights found.</p>}
+                <section style={{ marginTop: 14 }}>
+                    {loading && <div style={pageStyles.muted}>Loading…</div>}
+                    {!loading && error && <div style={pageStyles.error}>{error}</div>}
+                    {!loading && !error && data && data.results.length === 0 && (
+                        <div style={pageStyles.muted}>No insights found.</div>
+                    )}
 
                     {!loading && !error && data && data.results.length > 0 && (
-                        <>
-                            <ul style={{ paddingLeft: 18 }}>
-                                {data.results.map((it) => (
-                                    <li key={it.id} style={{ marginBottom: 14 }}>
-                                        <div style={{ display: "flex", gap: 10, alignItems: "baseline", flexWrap: "wrap" }}>
-                                            <Link to={`/insights/${it.id}`}>
-                                                <strong>{it.title}</strong>
+                        <div style={{ display: "grid", gap: 10 }}>
+                            {data.results.map((it) => (
+                                <div key={it.id} style={pageStyles.itemCard}>
+                                    <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                                        <div style={{ minWidth: 0 }}>
+                                            <Link to={`/insights/${it.id}`} style={pageStyles.itemTitle}>
+                                                {it.title}
                                             </Link>
-                                            <em>({it.category})</em>
-                                            <span style={{ opacity: 0.8 }}>by {it.created_by?.username}</span>
-                                        </div>
-                                        <div style={{ fontSize: 12, opacity: 0.8, marginTop: 4 }}>
-                                            Tags: {it.tags.join(", ")}
-                                        </div>
-                                    </li>
-                                ))}
-                            </ul>
+                                            <div style={pageStyles.preview}>
+                                                {snippet(it.body, 180)}
+                                            </div>
 
-                            <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 16 }}>
+                                            <div style={pageStyles.meta}>
+                                                <span style={pageStyles.pill}>{it.category}</span>
+                                                <span style={{ opacity: 0.75 }}>
+                                                    by <b style={{ color: "rgba(255,255,255,0.9)" }}>{it.created_by?.username}</b>
+                                                </span>
+                                            </div>
+
+                                            <div style={pageStyles.tags}>
+                                                {it.tags.map((t) => (
+                                                    <span key={t} style={pageStyles.tagPill}>#{t}</span>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <div style={{ opacity: 0.65, fontSize: 12, whiteSpace: "nowrap" }}>
+                                            ID: {it.id}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+
+                            <div style={pageStyles.pagination}>
                                 <button
                                     onClick={() => setPage((p) => Math.max(1, p - 1))}
                                     disabled={!data.previous || page === 1 || loading}
+                                    style={pageStyles.pageBtn}
                                 >
                                     Prev
                                 </button>
 
-                                <span>
+                                <div style={{ color: "rgba(255,255,255,0.85)", fontSize: 13 }}>
                                     Page <b>{page}</b> / <b>{totalPages}</b>
-                                </span>
+                                </div>
 
-                                <button onClick={() => setPage((p) => p + 1)} disabled={!data.next || loading}>
+                                <button
+                                    onClick={() => setPage((p) => p + 1)}
+                                    disabled={!data.next || loading}
+                                    style={pageStyles.pageBtn}
+                                >
                                     Next
                                 </button>
                             </div>
-                        </>
+                        </div>
                     )}
-                </div>
+                </section>
             </main>
-        </>
+        </div>
     );
 }
+
+const pageStyles: Record<string, React.CSSProperties> = {
+    page: {
+        minHeight: "100vh",
+        background:
+            "radial-gradient(1200px 600px at 20% 0%, rgba(99,102,241,.18), transparent 60%), radial-gradient(900px 500px at 90% 10%, rgba(16,185,129,.14), transparent 55%), #0b1020",
+    },
+    main: {
+        padding: 24,
+        fontFamily:
+            'ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"',
+        maxWidth: 980,
+        margin: "0 auto",
+    },
+    headerRow: {
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "flex-end",
+        gap: 12,
+        marginTop: 10,
+    },
+    kicker: {
+        fontSize: 12,
+        fontWeight: 900,
+        letterSpacing: 0.8,
+        color: "rgba(255,255,255,0.65)",
+    },
+    h1: { margin: "6px 0 4px", fontSize: 34, color: "white", lineHeight: 1.1 },
+    sub: { fontSize: 12, opacity: 0.75, color: "rgba(255,255,255,0.75)" },
+
+    glassCard: {
+        marginTop: 16,
+        padding: 12,
+        borderRadius: 16,
+        background: "rgba(255,255,255,0.08)",
+        border: "1px solid rgba(255,255,255,0.12)",
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
+        boxShadow: "0 10px 25px rgba(0,0,0,0.25)",
+    },
+    filtersGrid: {
+        display: "grid",
+        gap: 10,
+        gridTemplateColumns: "1fr 1fr",
+    },
+    input: {
+        width: "100%",
+        padding: "10px 12px",
+        borderRadius: 12,
+        border: "1px solid rgba(255,255,255,0.14)",
+        background: "rgba(15,23,42,0.35)",
+        color: "rgba(255,255,255,0.92)",
+        outline: "none",
+    },
+
+    primaryBtn: {
+        padding: "10px 12px",
+        borderRadius: 12,
+        border: "1px solid rgba(255,255,255,0.16)",
+        background: "rgba(255,255,255,0.12)",
+        color: "rgba(255,255,255,0.92)",
+        fontWeight: 900,
+        cursor: "pointer",
+    },
+    ghostBtn: {
+        padding: "10px 12px",
+        borderRadius: 12,
+        border: "1px solid rgba(255,255,255,0.12)",
+        background: "transparent",
+        color: "rgba(255,255,255,0.88)",
+        fontWeight: 800,
+        cursor: "pointer",
+    },
+
+    muted: { color: "rgba(255,255,255,0.75)", padding: "10px 0" },
+    error: {
+        color: "#fecaca",
+        background: "rgba(244,63,94,0.10)",
+        border: "1px solid rgba(244,63,94,0.25)",
+        padding: 12,
+        borderRadius: 12,
+    },
+
+    itemCard: {
+        padding: 14,
+        borderRadius: 16,
+        background: "rgba(255,255,255,0.08)",
+        border: "1px solid rgba(255,255,255,0.12)",
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
+    },
+    itemTitle: {
+        display: "inline-block",
+        fontSize: 16,
+        fontWeight: 900,
+        color: "rgba(226,232,240,0.95)", // softer than pure white
+        textDecoration: "none",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
+        maxWidth: 640,
+    },
+    meta: {
+        display: "flex",
+        gap: 10,
+        alignItems: "center",
+        marginTop: 8,
+        color: "rgba(255,255,255,0.75)",
+        fontSize: 13,
+    },
+    pill: {
+        padding: "4px 10px",
+        borderRadius: 999,
+        background: "rgba(99,102,241,0.18)",
+        border: "1px solid rgba(99,102,241,0.22)",
+        color: "rgba(255,255,255,0.9)",
+        fontWeight: 800,
+        fontSize: 12,
+    },
+    tags: { display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 },
+    tagPill: {
+        padding: "4px 8px",
+        borderRadius: 999,
+        background: "rgba(255,255,255,0.08)",
+        border: "1px solid rgba(255,255,255,0.12)",
+        color: "rgba(255,255,255,0.82)",
+        fontSize: 12,
+    },
+
+    pagination: {
+        marginTop: 8,
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        gap: 10,
+    },
+    pageBtn: {
+        padding: "8px 12px",
+        borderRadius: 12,
+        border: "1px solid rgba(255,255,255,0.12)",
+        background: "rgba(255,255,255,0.08)",
+        color: "rgba(255,255,255,0.88)",
+        fontWeight: 800,
+        cursor: "pointer",
+    },
+    preview: {
+        marginTop: 8,
+        color: "rgba(226,232,240,0.75)",
+        fontSize: 13,
+        lineHeight: 1.45,
+    },
+};

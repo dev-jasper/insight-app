@@ -1,24 +1,23 @@
-import type { ApiError } from "./types";
-
 export type FieldErrors = Record<string, string[]>;
 
 export type ParsedApiError = {
   message: string;
-  fieldErrors: FieldErrors;     // field-level errors (title/body/tags...)
+  fieldErrors: FieldErrors;
   status?: number;
 };
+
+function looksLikeHtml(s: string) {
+  const t = s.trim().toLowerCase();
+  return t.startsWith("<!doctype") || t.startsWith("<html") || t.includes("<body");
+}
 
 export function parseApiError(err: unknown): ParsedApiError {
   const e = err as {
     message?: string;
-    response?: { status?: number; data?: ApiError | any };
-    request?: any;
+    response?: { status?: number; data?: any };
   };
 
-  const status = e.response?.status;
-  const data = e.response?.data as ApiError | undefined;
-
-  // No response => network/CORS/server down
+  // No response => real network/CORS/server down
   if (!e.response) {
     return {
       message: "Network error. Please check your connection and try again.",
@@ -26,19 +25,28 @@ export function parseApiError(err: unknown): ParsedApiError {
     };
   }
 
-  // If backend uses standardized shape
-  const detail = data?.detail;
-  const errors = data?.errors ?? {};
+  const status = e.response.status;
+  const data = e.response.data;
 
-  // Fallbacks
+  if (typeof data === "string" && looksLikeHtml(data)) {
+    return {
+      message: `Request failed (${status}). Endpoint not found or wrong URL.`,
+      fieldErrors: {},
+      status,
+    };
+  }
+
+  const details = data?.error?.details;
+
+  const fieldErrors: FieldErrors =
+    (details && typeof details === "object" ? details : data?.errors) ?? {};
+
   const message =
-    detail ||
-    (typeof e.response?.data === "string" ? e.response.data : "") ||
-    (e.message || "Request failed. Please try again.");
+    (Array.isArray(details?.detail) && details.detail[0]) ||
+    data?.detail ||
+    data?.error?.code ||
+    e.message ||
+    "Request failed. Please try again.";
 
-  return {
-    message,
-    fieldErrors: errors,
-    status,
-  };
+  return { message, fieldErrors, status };
 }
