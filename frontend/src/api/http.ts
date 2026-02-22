@@ -21,7 +21,6 @@ http.interceptors.response.use(
         if (err?.response?.status === 401) {
             // simplest exam-safe behavior: drop tokens and force re-login
             tokenStorage.clear();
-            // optional: you can redirect if you want:
             // window.location.href = "/login";
         }
         return Promise.reject(err);

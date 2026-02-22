@@ -3,7 +3,7 @@ import type { ApiError } from "./types";
 export type FieldErrors = Record<string, string[]>;
 
 export type ParsedApiError = {
-  message: string;              // human-friendly message
+  message: string;
   fieldErrors: FieldErrors;     // field-level errors (title/body/tags...)
   status?: number;
 };
@@ -26,11 +26,11 @@ export function parseApiError(err: unknown): ParsedApiError {
     };
   }
 
-  // If backend uses our standardized shape
+  // If backend uses standardized shape
   const detail = data?.detail;
   const errors = data?.errors ?? {};
 
-  // Fallbacks (sometimes DRF returns {detail:"..."} only, or plain strings)
+  // Fallbacks
   const message =
     detail ||
     (typeof e.response?.data === "string" ? e.response.data : "") ||

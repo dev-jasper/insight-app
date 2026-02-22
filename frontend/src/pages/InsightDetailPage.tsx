@@ -26,7 +26,7 @@ function getCurrentUserIdFromToken(): number | null {
     const payload = getJwtPayload(token);
     if (!payload) return null;
 
-    // SimpleJWT default is usually user_id, but be defensive:
+    // SimpleJWT default is usually user_id,
     const raw =
         (payload as any).user_id ??
         (payload as any).id ??
@@ -134,14 +134,14 @@ export default function InsightDetailPage() {
 
                     {/* Actions */}
                     <div style={{ marginTop: 18, display: "flex", gap: 10, alignItems: "center" }}>
-                        {/* ✅ Edit shown when authenticated (exam-friendly) */}
+                        {/* Edit shown when authenticated (exam-friendly) */}
                         {isAuthenticated && (
                             <Link to={`/insights/${insight.id}/edit`}>
                                 <button type="button">Edit</button>
                             </Link>
                         )}
 
-                        {/* ✅ Delete only for owner (backend enforces too) */}
+                        {/* Delete only for owner (backend enforces too) */}
                         {isAuthenticated && isOwner && (
                             <button type="button" onClick={onDelete} disabled={deleting}>
                                 {deleting ? "Deleting…" : "Delete"}
