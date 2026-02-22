@@ -19,4 +19,7 @@ urlpatterns = [
 
     # Analytics
     path("analytics/top-tags/", top_tags_view, name="top-tags"),
+
+    # Signup
+    path("auth/signup/", SignupAPIView.as_view(), name="auth-signup"),
 ]

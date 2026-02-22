@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 from rest_framework import serializers
 from .models import Insight
+from django.contrib.auth.password_validation import validate_password
 
 class InsightSerializer(serializers.ModelSerializer):
     # input field (write-only)
@@ -65,3 +66,13 @@ class InsightSerializer(serializers.ModelSerializer):
         data = super().to_representation(instance)
         data["tags"] = data.pop("tags_list", [])
         return data
+
+class SignupSerializer(serializers.Serializer):
+    username = serializers.CharField(min_length=3, max_length=150)
+    email = serializers.EmailField(required=False, allow_blank=True)
+    password = serializers.CharField(write_only=True, min_length=8)
+
+    def validate_password(self, value: str) -> str:
+        # uses Django’s configured validators if you have them
+        validate_password(value)
+        return value
