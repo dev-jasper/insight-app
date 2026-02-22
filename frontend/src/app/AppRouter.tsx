@@ -26,9 +26,7 @@ export default function AppRouter() {
             <Route
                 path="/insights"
                 element={
-                    <ProtectedRoute>
-                        <InsightsListPage />
-                    </ProtectedRoute>
+                    <InsightsListPage />
                 }
             />
 
@@ -44,9 +42,7 @@ export default function AppRouter() {
             <Route
                 path="/insights/:id/"
                 element={
-                    <ProtectedRoute>
-                        <InsightDetailPage />
-                    </ProtectedRoute>
+                    <InsightDetailPage />
                 }
             />
 
