@@ -4,17 +4,23 @@ from rest_framework import status, viewsets
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from .application.use_cases.create_insight import CreateInsightInput, CreateInsightUseCase
 from .application.use_cases.delete_insight import DeleteInsightUseCase
 from .application.use_cases.list_insights import ListInsightsQuery, ListInsightsUseCase
 from .application.use_cases.top_tags import TopTagsUseCase
 from .application.use_cases.update_insight import UpdateInsightInput, UpdateInsightUseCase
+from .application.use_cases.signup_user import SignupInput, SignupUserUseCase, SignupValidationError
 from .domain.exceptions import ValidationError
 from .infrastructure.repositories import InsightRepository
+from .infrastructure.user_repository import UserRepository
 from .infrastructure.selectors import InsightSelector, TagAnalyticsSelector
 from .models import Insight
-from .serializers import InsightSerializer
+from .serializers import InsightSerializer,SignupSerializer
+from django.contrib.auth import get_user_model
+
+
 
 
 class InsightViewSet(viewsets.ModelViewSet):
@@ -132,3 +138,38 @@ def logout_view(request):
 def me_view(request):
     u = request.user
     return Response({"id": u.id, "username": u.username})
+
+User = get_user_model()
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def signup_view(request):
+    ser = SignupSerializer(data=request.data)
+    ser.is_valid(raise_exception=True)
+
+    use_case = SignupUserUseCase(repo=UserRepository())
+    try:
+        out = use_case.execute(
+            SignupInput(
+                username=ser.validated_data["username"],
+                email=ser.validated_data.get("email", ""),
+                password=ser.validated_data["password"],
+            )
+        )
+    except SignupValidationError as e:
+        return Response(
+            {"error": {"code": "VALIDATION_ERROR", "details": {"detail": [str(e)]}}},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    user = User.objects.get(id=out.id)
+    refresh = RefreshToken.for_user(user)
+
+    return Response(
+        {
+            "user": {"id": out.id, "username": out.username, "email": out.email},
+            "tokens": {"refresh": str(refresh), "access": str(refresh.access_token)},
+        },
+        status=status.HTTP_201_CREATED,
+    )
