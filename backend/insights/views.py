@@ -126,3 +126,9 @@ def top_tags_view(request):
 def logout_view(request):
     # Stateless JWT: client clears tokens. Endpoint exists per requirement.
     return Response({"detail": "Logged out."})
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def me_view(request):
+    u = request.user
+    return Response({"id": u.id, "username": u.username})
