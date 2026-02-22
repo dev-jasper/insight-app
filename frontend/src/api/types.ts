@@ -5,7 +5,6 @@ export type Paginated<T> = {
     results: T[];
 };
 
-// If you already know the exact enum values, replace this with a union:
 // export type Category = "Macro" | "Equities" | "FixedIncome" | "Alternatives";
 export type Category = string;
 

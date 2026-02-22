@@ -100,7 +100,6 @@ export default function AnalyticsPage() {
     );
 
     function goToTag(tag: string) {
-        // your list page reads ?tag=...
         nav(`/insights?tag=${encodeURIComponent(tag)}`);
     }
 
