@@ -145,7 +145,7 @@ export default function InsightDetailPage() {
                         </div>
 
                         <div style={styles.actionsTop}>
-                            {isAuthenticated && (
+                            {isAuthenticated && isOwner && (
                                 <Link to={`/insights/${insight.id}/edit`} style={{ textDecoration: "none" }}>
                                     <button type="button" style={styles.secondaryBtn}>
                                         Edit
