@@ -46,7 +46,7 @@ export default function LoginPage() {
                 password,
             });
 
-            login(res); // stores tokens, sets auth state
+            login(res, username.trim()); // stores tokens, sets auth state
             nav(redirectTo, { replace: true });
         } catch (err) {
             const parsed = parseApiError(err);
