@@ -1,21 +1,19 @@
 import { useMemo, useState } from "react";
-import { useLocation, useNavigate, Link } from "react-router-dom";
-import { loginApi } from "../api/auth";
-import type { ApiError, LoginResponse } from "../api/types";
+import { Link, useNavigate } from "react-router-dom";
+import { signupApi } from "../api/auth";
 import { useAuth } from "../auth/AuthContext";
 import { parseApiError } from "../api/errors";
 
-type FieldErrors = Partial<Record<"username" | "password", string>>;
+type FieldErrors = Partial<Record<"username" | "email" | "password" | "confirmPassword", string>>;
 
-export default function LoginPage() {
+export default function SignupPage() {
     const nav = useNavigate();
-    const loc = useLocation();
     const { login } = useAuth();
 
-    const redirectTo = (loc.state as any)?.from?.pathname ?? "/insights";
-
     const [username, setUsername] = useState("");
+    const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [confirmPassword, setConfirmPassword] = useState("");
     const [showPw, setShowPw] = useState(false);
 
     const [submitting, setSubmitting] = useState(false);
@@ -23,39 +21,53 @@ export default function LoginPage() {
     const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
     const canSubmit = useMemo(() => {
-        return username.trim().length > 0 && password.length > 0 && !submitting;
-    }, [username, password, submitting]);
+        return (
+            username.trim().length > 0 &&
+            password.length > 0 &&
+            confirmPassword.length > 0 &&
+            !submitting
+        );
+    }, [username, password, confirmPassword, submitting]);
 
     async function onSubmit(e: React.FormEvent) {
         e.preventDefault();
         setFormError("");
         setFieldErrors({});
 
-        const nextFieldErrors: FieldErrors = {};
-        if (!username.trim()) nextFieldErrors.username = "Username is required.";
-        if (!password) nextFieldErrors.password = "Password is required.";
-        if (Object.keys(nextFieldErrors).length) {
-            setFieldErrors(nextFieldErrors);
+        const next: FieldErrors = {};
+        if (!username.trim()) next.username = "Username is required.";
+        if (email && !email.includes("@")) next.email = "Please enter a valid email.";
+        if (!password) next.password = "Password is required.";
+        if (password.length > 0 && password.length < 8) next.password = "Password must be at least 8 characters.";
+        if (!confirmPassword) next.confirmPassword = "Confirm password is required.";
+        if (password && confirmPassword && password !== confirmPassword)
+            next.confirmPassword = "Passwords do not match.";
+
+        if (Object.keys(next).length) {
+            setFieldErrors(next);
             return;
         }
 
         setSubmitting(true);
         try {
-            const res: LoginResponse = await loginApi({
+            const res = await signupApi({
                 username: username.trim(),
+                email: email.trim() || undefined,
                 password,
             });
 
-            login(res, username.trim()); // stores tokens, sets auth state
-            nav(redirectTo, { replace: true });
+            // backend returns { user, tokens }
+            await login(res.tokens, res.user.username);
+            nav("/insights", { replace: true });
         } catch (err) {
             const parsed = parseApiError(err);
-            setFormError(parsed.message || "Login failed. Please try again.");
+            setFormError(parsed.message || "Signup failed. Please try again.");
 
-            // Optional: map backend field errors
+            // Optional mapping if backend returns field errors
             const fe: FieldErrors = {};
             const be = parsed.fieldErrors;
             if (be?.username?.[0]) fe.username = be.username[0];
+            if (be?.email?.[0]) fe.email = be.email[0];
             if (be?.password?.[0]) fe.password = be.password[0];
             setFieldErrors(fe);
         } finally {
@@ -71,81 +83,85 @@ export default function LoginPage() {
                 <div style={styles.headerRow}>
                     <div>
                         <div style={styles.kicker}>Insight App</div>
-                        <h1 style={styles.title}>Welcome back</h1>
-                        <p style={styles.subtitle}>Sign in to manage insights.</p>
+                        <h1 style={styles.title}>Create your account</h1>
+                        <p style={styles.subtitle}>Sign up to create and manage insights.</p>
                     </div>
                 </div>
 
                 {formError && (
                     <div style={styles.alert}>
-                        <div style={styles.alertTitle}>Login failed</div>
+                        <div style={styles.alertTitle}>Signup failed</div>
                         <div style={styles.alertBody}>{formError}</div>
                     </div>
                 )}
 
                 <form onSubmit={onSubmit} style={styles.form}>
                     <div style={styles.field}>
-                        <label style={styles.label}>Email / Username</label>
+                        <label style={styles.label}>Username</label>
                         <input
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
                             placeholder="e.g. Jasper"
                             autoComplete="username"
-                            style={{
-                                ...styles.input,
-                                ...(fieldErrors.username ? styles.inputError : null),
-                            }}
+                            style={{ ...styles.input, ...(fieldErrors.username ? styles.inputError : null) }}
                         />
-                        {fieldErrors.username && (
-                            <div style={styles.fieldError}>{fieldErrors.username}</div>
-                        )}
+                        {fieldErrors.username && <div style={styles.fieldError}>{fieldErrors.username}</div>}
+                    </div>
+
+                    <div style={styles.field}>
+                        <label style={styles.label}>Email (optional)</label>
+                        <input
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            placeholder="e.g. jasper@email.com"
+                            autoComplete="email"
+                            style={{ ...styles.input, ...(fieldErrors.email ? styles.inputError : null) }}
+                        />
+                        {fieldErrors.email && <div style={styles.fieldError}>{fieldErrors.email}</div>}
                     </div>
 
                     <div style={styles.field}>
                         <label style={styles.label}>Password</label>
-
                         <div style={styles.passwordContainer}>
                             <input
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 placeholder="••••••••"
                                 type={showPw ? "text" : "password"}
-                                autoComplete="current-password"
-                                style={{
-                                    ...styles.passwordInput,
-                                    ...(fieldErrors.password ? styles.inputError : null),
-                                }}
+                                autoComplete="new-password"
+                                style={{ ...styles.passwordInput, ...(fieldErrors.password ? styles.inputError : null) }}
                             />
-
-                            <button
-                                type="button"
-                                onClick={() => setShowPw((s) => !s)}
-                                style={styles.showBtn}
-                            >
+                            <button type="button" onClick={() => setShowPw((s) => !s)} style={styles.showBtn}>
                                 {showPw ? "Hide" : "Show"}
                             </button>
                         </div>
+                        {fieldErrors.password && <div style={styles.fieldError}>{fieldErrors.password}</div>}
+                    </div>
 
-                        {fieldErrors.password && (
-                            <div style={styles.fieldError}>{fieldErrors.password}</div>
+                    <div style={styles.field}>
+                        <label style={styles.label}>Confirm Password</label>
+                        <input
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            placeholder="••••••••"
+                            type={showPw ? "text" : "password"}
+                            autoComplete="new-password"
+                            style={{ ...styles.input, ...(fieldErrors.confirmPassword ? styles.inputError : null) }}
+                        />
+                        {fieldErrors.confirmPassword && (
+                            <div style={styles.fieldError}>{fieldErrors.confirmPassword}</div>
                         )}
                     </div>
 
                     <button type="submit" disabled={!canSubmit} style={styles.primaryBtn}>
-                        {submitting ? "Signing in…" : "Sign in"}
+                        {submitting ? "Creating account…" : "Sign up"}
                     </button>
-                    <Link to="/signup" style={styles.secondaryBtn}>
-                        Create account
-                    </Link>
-
-                    <div style={styles.footerRow}>
-                        <span style={{ opacity: 0.75 }}>
-                            Tip: after login, you’ll be redirected to{" "}
-                            <code style={styles.code}>/insights</code>
-                        </span>
-                    </div>
 
                     <div style={styles.miniLinks}>
+                        <Link to="/login" style={styles.linkMuted}>
+                            Already have an account? Sign in
+                        </Link>
+
                         <Link to="/insights" style={styles.linkMuted}>
                             View insights (read-only)
                         </Link>
@@ -156,6 +172,7 @@ export default function LoginPage() {
     );
 }
 
+// copied from LoginPage theme (same styles)
 const styles: Record<string, React.CSSProperties> = {
     page: {
         minHeight: "100vh",
@@ -185,8 +202,7 @@ const styles: Record<string, React.CSSProperties> = {
         border: "1px solid rgba(255,255,255,0.35)",
         borderRadius: 16,
         padding: 22,
-        boxShadow:
-            "0 10px 30px rgba(0,0,0,0.35), 0 1px 0 rgba(255,255,255,0.6) inset",
+        boxShadow: "0 10px 30px rgba(0,0,0,0.35), 0 1px 0 rgba(255,255,255,0.6) inset",
         backdropFilter: "blur(10px)",
         position: "relative",
     },
@@ -263,9 +279,6 @@ const styles: Record<string, React.CSSProperties> = {
         fontSize: 12,
         color: "#be123c",
     },
-    passwordRow: {
-        position: "relative",
-    },
     showBtn: {
         position: "absolute",
         right: 8,
@@ -293,22 +306,8 @@ const styles: Record<string, React.CSSProperties> = {
         cursor: "pointer",
         opacity: 1,
     },
-    footerRow: {
-        marginTop: 8,
-        fontSize: 12,
-        color: "rgba(15, 23, 42, 0.7)",
-    },
-    code: {
-        fontFamily:
-            'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-        fontSize: 12,
-        padding: "2px 6px",
-        borderRadius: 8,
-        background: "rgba(15,23,42,0.06)",
-        border: "1px solid rgba(15,23,42,0.10)",
-    },
     miniLinks: {
-        marginTop: 6,
+        marginTop: 8,
         display: "flex",
         justifyContent: "space-between",
     },
@@ -322,7 +321,6 @@ const styles: Record<string, React.CSSProperties> = {
         display: "flex",
         alignItems: "center",
     },
-
     passwordInput: {
         width: "100%",
         padding: "10px 12px",
@@ -333,23 +331,5 @@ const styles: Record<string, React.CSSProperties> = {
         background: "rgba(255,255,255,0.9)",
         fontSize: 14,
         boxSizing: "border-box",
-    },
-    secondaryBtn: {
-        width: "100%",
-        boxSizing: "border-box",
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        textAlign: "center",
-        marginTop: 8,
-
-        padding: "10px 12px",
-        borderRadius: 12,
-        border: "1px solid rgba(15, 23, 42, 0.18)",
-        background: "rgba(15,23,42,0.04)",
-        color: "#0f172a",
-        fontWeight: 800,
-        cursor: "pointer",
-        textDecoration: "none",
     },
 };
