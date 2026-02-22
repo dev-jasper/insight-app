@@ -9,9 +9,9 @@ router.register(r"insights", InsightViewSet, basename="insight")
 
 urlpatterns = [
     # Auth
-    path("auth/login", TokenObtainPairView.as_view(), name="token_obtain_pair"),
-    path("auth/refresh", TokenRefreshView.as_view(), name="token_refresh"),
-    path("auth/logout", logout_view, name="logout"),
+    path("auth/login/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
+    path("auth/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+    path("auth/logout/", logout_view, name="logout"),
     path("auth/me/", me_view),
     path("auth/signup/", signup_view),
 
