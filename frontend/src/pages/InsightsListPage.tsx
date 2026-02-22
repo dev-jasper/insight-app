@@ -1,10 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { listInsights, type ListInsightsParams } from "../api/insights";
 import type { ApiError, Insight, Paginated } from "../api/types";
-import { Link } from "react-router-dom";
+import TopNav from "../components/TopNav";
+import { useAuth } from "../auth/AuthContext";
 
 // TODO: update to match backend exactly if needed
 const CATEGORY_OPTIONS = ["", "Macro", "Equities", "FixedIncome", "Alternatives"];
+const PAGE_SIZE_OPTIONS = [5, 10, 20, 50];
 
 function getApiErrorMessage(err: unknown): string {
     const e = err as { response?: { data?: ApiError } };
@@ -19,7 +22,18 @@ function getApiErrorMessage(err: unknown): string {
     return "Request failed. Please try again.";
 }
 
+function clampInt(v: string | null, fallback: number) {
+    const n = Number(v);
+    return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
+}
+
 export default function InsightsListPage() {
+    const { isAuthenticated } = useAuth();
+
+    const [sp, setSp] = useSearchParams();
+    const didInitFromUrl = useRef(false);
+    const skipNextUrlWrite = useRef(false);
+
     const [data, setData] = useState<Paginated<Insight> | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string>("");
@@ -32,6 +46,50 @@ export default function InsightsListPage() {
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
 
+    // 1) INIT: read query params -> state (runs once)
+    useEffect(() => {
+        if (didInitFromUrl.current) return;
+        didInitFromUrl.current = true;
+
+        // prevent immediate url write-back
+        skipNextUrlWrite.current = true;
+
+        const qSearch = sp.get("search") ?? "";
+        const qTag = sp.get("tag") ?? "";
+        const qCategory = sp.get("category") ?? "";
+        const qOrdering = sp.get("ordering") ?? "-created_at";
+        const qPage = clampInt(sp.get("page"), 1);
+        const qPageSize = clampInt(sp.get("page_size"), 10);
+
+        setSearch(qSearch);
+        setTag(qTag);
+        setCategory(qCategory);
+        setOrdering(qOrdering);
+        setPage(qPage);
+        setPageSize(PAGE_SIZE_OPTIONS.includes(qPageSize) ? qPageSize : 10);
+    }, [sp]);
+
+    // 2) URL SYNC: state -> query params
+    useEffect(() => {
+        if (skipNextUrlWrite.current) {
+            skipNextUrlWrite.current = false;
+            return;
+        }
+
+        const next = new URLSearchParams();
+
+        if (search.trim()) next.set("search", search.trim());
+        if (tag.trim()) next.set("tag", tag.trim());
+        if (category.trim()) next.set("category", category.trim());
+
+        if (ordering && ordering !== "-created_at") next.set("ordering", ordering);
+        if (page !== 1) next.set("page", String(page));
+        if (pageSize !== 10) next.set("page_size", String(pageSize));
+
+        setSp(next, { replace: true });
+    }, [search, tag, category, ordering, page, pageSize, setSp]);
+
+    // 3) API params
     const params: ListInsightsParams = useMemo(
         () => ({
             search: search.trim() || undefined,
@@ -44,6 +102,7 @@ export default function InsightsListPage() {
         [search, category, tag, ordering, page, pageSize]
     );
 
+    // 4) Fetch
     useEffect(() => {
         let mounted = true;
         setLoading(true);
@@ -68,149 +127,161 @@ export default function InsightsListPage() {
         };
     }, [params]);
 
-    const totalPages =
-        data ? Math.max(1, Math.ceil(data.count / pageSize)) : 1;
+    const totalPages = data ? Math.max(1, Math.ceil(data.count / pageSize)) : 1;
 
     const resetFilters = () => {
+        skipNextUrlWrite.current = true;
+
         setSearch("");
         setCategory("");
         setTag("");
         setOrdering("-created_at");
         setPageSize(10);
         setPage(1);
+
+        setSp(new URLSearchParams(), { replace: true });
     };
 
     return (
-        <main style={{ padding: 24, fontFamily: "system-ui", maxWidth: 900, margin: "0 auto" }}>
-            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12 }}>
-                <div>
-                    <h1 style={{ margin: 0 }}>Insights</h1>
-                    <div style={{ fontSize: 12, opacity: 0.7, marginTop: 4 }}>
-                        {data ? `${data.count} total` : ""}
+        <>
+            <TopNav />
+
+            <main style={{ padding: 24, fontFamily: "system-ui", maxWidth: 900, margin: "0 auto" }}>
+                <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12 }}>
+                    <div>
+                        <h1 style={{ margin: 0 }}>Insights</h1>
+                        <div style={{ fontSize: 12, opacity: 0.7, marginTop: 4 }}>
+                            {data ? `${data.count} total` : ""}
+                        </div>
+                    </div>
+
+                    <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                        {isAuthenticated && (
+                            <Link to="/insights/new">
+                                <button type="button" disabled={loading}>
+                                    + Create Insight
+                                </button>
+                            </Link>
+                        )}
+
+                        <button onClick={resetFilters} disabled={loading} style={{ padding: "8px 12px" }}>
+                            Reset
+                        </button>
                     </div>
                 </div>
 
-                <button onClick={resetFilters} disabled={loading} style={{ padding: "8px 12px" }}>
-                    Reset
-                </button>
-            </div>
+                {/* Filters */}
+                <div style={{ display: "grid", gap: 10, gridTemplateColumns: "1fr 1fr", marginTop: 16 }}>
+                    <input
+                        placeholder="Search (title)..."
+                        value={search}
+                        onChange={(e) => {
+                            setPage(1);
+                            setSearch(e.target.value);
+                        }}
+                        style={{ padding: 10 }}
+                    />
 
-            {/* Filters */}
-            <div style={{ display: "grid", gap: 10, gridTemplateColumns: "1fr 1fr", marginTop: 16 }}>
-                <input
-                    placeholder="Search (title)..."
-                    value={search}
-                    onChange={(e) => {
-                        setPage(1);
-                        setSearch(e.target.value);
-                    }}
-                    style={{ padding: 10 }}
-                />
+                    <input
+                        placeholder="Tag (e.g. Inflation)"
+                        value={tag}
+                        onChange={(e) => {
+                            setPage(1);
+                            setTag(e.target.value);
+                        }}
+                        style={{ padding: 10 }}
+                    />
 
-                <input
-                    placeholder="Tag (e.g. Inflation)"
-                    value={tag}
-                    onChange={(e) => {
-                        setPage(1);
-                        setTag(e.target.value);
-                    }}
-                    style={{ padding: 10 }}
-                />
+                    <select
+                        value={category}
+                        onChange={(e) => {
+                            setPage(1);
+                            setCategory(e.target.value);
+                        }}
+                        style={{ padding: 10 }}
+                    >
+                        {CATEGORY_OPTIONS.map((c) => (
+                            <option key={c} value={c}>
+                                {c === "" ? "All categories" : c}
+                            </option>
+                        ))}
+                    </select>
 
-                <select
-                    value={category}
-                    onChange={(e) => {
-                        setPage(1);
-                        setCategory(e.target.value);
-                    }}
-                    style={{ padding: 10 }}
-                >
-                    {CATEGORY_OPTIONS.map((c) => (
-                        <option key={c} value={c}>
-                            {c === "" ? "All categories" : c}
-                        </option>
-                    ))}
-                </select>
+                    <select
+                        value={ordering}
+                        onChange={(e) => {
+                            setPage(1);
+                            setOrdering(e.target.value);
+                        }}
+                        style={{ padding: 10 }}
+                    >
+                        <option value="-created_at">Newest</option>
+                        <option value="created_at">Oldest</option>
+                        <option value="title">Title A-Z</option>
+                        <option value="-title">Title Z-A</option>
+                    </select>
 
-                <select
-                    value={ordering}
-                    onChange={(e) => {
-                        setPage(1);
-                        setOrdering(e.target.value);
-                    }}
-                    style={{ padding: 10 }}
-                >
-                    <option value="-created_at">Newest</option>
-                    <option value="created_at">Oldest</option>
-                    <option value="title">Title A-Z</option>
-                    <option value="-title">Title Z-A</option>
-                </select>
+                    <select
+                        value={pageSize}
+                        onChange={(e) => {
+                            setPage(1);
+                            setPageSize(Number(e.target.value));
+                        }}
+                        style={{ padding: 10 }}
+                    >
+                        {PAGE_SIZE_OPTIONS.map((n) => (
+                            <option key={n} value={n}>
+                                Page size: {n}
+                            </option>
+                        ))}
+                    </select>
+                </div>
 
-                <select
-                    value={pageSize}
-                    onChange={(e) => {
-                        setPage(1);
-                        setPageSize(Number(e.target.value));
-                    }}
-                    style={{ padding: 10 }}
-                >
-                    {[5, 10, 20, 50].map((n) => (
-                        <option key={n} value={n}>
-                            Page size: {n}
-                        </option>
-                    ))}
-                </select>
-            </div>
+                {/* Content */}
+                <div style={{ marginTop: 16 }}>
+                    {loading && <p>Loading…</p>}
+                    {!loading && error && <p style={{ color: "crimson" }}>{error}</p>}
+                    {!loading && !error && data && data.results.length === 0 && <p>No insights found.</p>}
 
-            {/* Content */}
-            <div style={{ marginTop: 16 }}>
-                {loading && <p>Loading…</p>}
+                    {!loading && !error && data && data.results.length > 0 && (
+                        <>
+                            <ul style={{ paddingLeft: 18 }}>
+                                {data.results.map((it) => (
+                                    <li key={it.id} style={{ marginBottom: 14 }}>
+                                        <div style={{ display: "flex", gap: 10, alignItems: "baseline", flexWrap: "wrap" }}>
+                                            <Link to={`/insights/${it.id}`}>
+                                                <strong>{it.title}</strong>
+                                            </Link>
+                                            <em>({it.category})</em>
+                                            <span style={{ opacity: 0.8 }}>by {it.created_by?.username}</span>
+                                        </div>
+                                        <div style={{ fontSize: 12, opacity: 0.8, marginTop: 4 }}>
+                                            Tags: {it.tags.join(", ")}
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
 
-                {!loading && error && <p style={{ color: "crimson" }}>{error}</p>}
+                            <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 16 }}>
+                                <button
+                                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                                    disabled={!data.previous || page === 1 || loading}
+                                >
+                                    Prev
+                                </button>
 
-                {!loading && !error && data && data.results.length === 0 && (
-                    <p>No insights found.</p>
-                )}
+                                <span>
+                                    Page <b>{page}</b> / <b>{totalPages}</b>
+                                </span>
 
-                {!loading && !error && data && data.results.length > 0 && (
-                    <>
-                        <ul style={{ paddingLeft: 18 }}>
-                            {data.results.map((it) => (
-                                <li key={it.id} style={{ marginBottom: 14 }}>
-                                    <div style={{ display: "flex", gap: 10, alignItems: "baseline", flexWrap: "wrap" }}>
-                                        <Link to={`/insights/${it.id}`}><strong>{it.title}</strong></Link>
-                                        <em>({it.category})</em>
-                                        <span style={{ opacity: 0.8 }}>by {it.created_by?.username}</span>
-                                    </div>
-                                    <div style={{ fontSize: 12, opacity: 0.8, marginTop: 4 }}>
-                                        Tags: {it.tags.join(", ")}
-                                    </div>
-                                </li>
-                            ))}
-                        </ul>
-
-                        <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 16 }}>
-                            <button
-                                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                                disabled={!data.previous || page === 1 || loading}
-                            >
-                                Prev
-                            </button>
-
-                            <span>
-                                Page <b>{page}</b> / <b>{totalPages}</b>
-                            </span>
-
-                            <button
-                                onClick={() => setPage((p) => p + 1)}
-                                disabled={!data.next || loading}
-                            >
-                                Next
-                            </button>
-                        </div>
-                    </>
-                )}
-            </div>
-        </main>
+                                <button onClick={() => setPage((p) => p + 1)} disabled={!data.next || loading}>
+                                    Next
+                                </button>
+                            </div>
+                        </>
+                    )}
+                </div>
+            </main>
+        </>
     );
 }
