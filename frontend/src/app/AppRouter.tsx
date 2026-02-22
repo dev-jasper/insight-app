@@ -64,8 +64,6 @@ export default function AppRouter() {
                     </ProtectedRoute>
                 }
             />
-
-            <Route path="*" element={<NotFoundPage />} />
         </Routes>
     );
 }

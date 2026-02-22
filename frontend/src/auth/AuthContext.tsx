@@ -27,8 +27,25 @@ function userFromAccessToken(access: string | null): AuthUser | null {
     const payload = getJwtPayload(access) as any;
     if (!payload) return null;
 
-    const id = typeof payload.user_id === "number" ? payload.user_id : undefined;
-    return { id, username: "User" };
+    const id =
+        typeof payload.user_id === "number"
+            ? payload.user_id
+            : typeof payload.id === "number"
+                ? payload.id
+                : undefined;
+
+    const username =
+        typeof payload.username === "string"
+            ? payload.username
+            : typeof payload.user?.username === "string"
+                ? payload.user.username
+                : typeof payload.name === "string"
+                    ? payload.name
+                    : typeof payload.sub === "string"
+                        ? payload.sub
+                        : "User";
+
+    return { id, username };
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
